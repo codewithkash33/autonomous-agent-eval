@@ -1,6 +1,7 @@
 # Autonomous Agent Simulation Evaluator
 
 [![Simulation CI](https://github.com/YOUR_USERNAME/autonomous-agent-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/autonomous-agent-eval/actions/workflows/ci.yml)
+**[▶ Live Demo](https://codewithkash33.github.io/autonomous-agent-eval/simulator-viz.html)**
 
 A continuous testing pipeline that evaluates autonomous agent behaviour against
 defined pass/fail scenarios — a miniature analogue of how production AV stacks
