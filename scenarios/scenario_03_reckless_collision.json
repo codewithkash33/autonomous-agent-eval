@@ -1,0 +1,17 @@
+{
+  "scenario_id":    "scenario_03_reckless_collision",
+  "scenario_type":  "collision_test",
+  "description":    "Reckless agent uses naive alternating-axis movement toward goal. Obstacle cluster sits directly on its path, causing a collision.",
+  "grid_width":     20,
+  "grid_height":    20,
+  "start":          {"x": 0, "y": 0},
+  "goal":           {"x": 19, "y": 10},
+  "obstacles": [
+    {"x":5,"y":5},
+    {"x":6,"y":5},
+    {"x":5,"y":6}
+  ],
+  "max_steps":      100,
+  "behavior":       "reckless",
+  "expected_result":"FAIL"
+}

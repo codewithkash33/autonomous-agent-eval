@@ -1,0 +1,13 @@
+{
+  "scenario_id":    "scenario_01_open_field",
+  "scenario_type":  "open_field",
+  "description":    "Open 20×20 grid with no obstacles. Agent should navigate directly to goal.",
+  "grid_width":     20,
+  "grid_height":    20,
+  "start":          {"x": 0, "y": 0},
+  "goal":           {"x": 19, "y": 19},
+  "obstacles":      [],
+  "max_steps":      100,
+  "behavior":       "greedy",
+  "expected_result":"PASS"
+}

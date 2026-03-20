@@ -1,0 +1,18 @@
+{
+  "scenario_id":    "scenario_05_no_path",
+  "scenario_type":  "no_path",
+  "description":    "Goal cell (5,5) is enclosed on all four cardinal sides by obstacles. A* exhausts all reachable cells and correctly reports NO_PATH_FOUND.",
+  "grid_width":     10,
+  "grid_height":    10,
+  "start":          {"x": 0, "y": 0},
+  "goal":           {"x": 5, "y": 5},
+  "obstacles": [
+    {"x":4,"y":5},
+    {"x":6,"y":5},
+    {"x":5,"y":4},
+    {"x":5,"y":6}
+  ],
+  "max_steps":      200,
+  "behavior":       "greedy",
+  "expected_result":"FAIL"
+}

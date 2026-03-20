@@ -1,0 +1,54 @@
+name: Simulation CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  build-and-evaluate:
+    name: Build → Simulate → Evaluate
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Setup ──────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Ensure g++ is available
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y g++
+          g++ --version
+
+      # ── Build ──────────────────────────────────────────────────────────────
+      - name: Compile simulator
+        run: make
+
+      - name: Verify binary and run smoke test
+        run: make smoke
+
+      # ── Test suite ─────────────────────────────────────────────────────────
+      - name: Run full scenario test suite
+        run: python3 runner/test_runner.py
+
+      # ── Evaluation ─────────────────────────────────────────────────────────
+      - name: Generate evaluation report
+        # Always run so we see metrics even on partial failures
+        if: always()
+        run: python3 runner/evaluate.py
+
+      # ── Artifacts ──────────────────────────────────────────────────────────
+      - name: Upload results database
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-results-${{ github.sha }}
+          path: results.db
+          retention-days: 30

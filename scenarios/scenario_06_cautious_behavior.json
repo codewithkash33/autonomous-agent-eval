@@ -1,0 +1,20 @@
+{
+  "scenario_id":    "scenario_06_cautious_behavior",
+  "scenario_type":  "obstacle_course",
+  "description":    "Two horizontal walls create an S-shaped corridor. Cautious behavior applies obstacle-proximity penalties, routing the agent safely through the open gaps while maintaining clearance from wall edges.",
+  "grid_width":     20,
+  "grid_height":    20,
+  "start":          {"x": 0, "y": 0},
+  "goal":           {"x": 19, "y": 19},
+  "obstacles": [
+    {"x":0,"y":6},{"x":1,"y":6},{"x":2,"y":6},{"x":3,"y":6},
+    {"x":4,"y":6},{"x":5,"y":6},{"x":6,"y":6},{"x":7,"y":6},
+    {"x":8,"y":6},{"x":9,"y":6},{"x":10,"y":6},
+    {"x":8,"y":13},{"x":9,"y":13},{"x":10,"y":13},{"x":11,"y":13},
+    {"x":12,"y":13},{"x":13,"y":13},{"x":14,"y":13},{"x":15,"y":13},
+    {"x":16,"y":13},{"x":17,"y":13},{"x":18,"y":13},{"x":19,"y":13}
+  ],
+  "max_steps":      300,
+  "behavior":       "cautious",
+  "expected_result":"PASS"
+}
