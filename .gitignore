@@ -1,0 +1,6 @@
+simulation/simulator
+
+results.db
+
+.DS_Store
+__pycache__/
