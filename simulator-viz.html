@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autonomous Agent Simulation Evaluator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080c10;
+    --panel:     #0d1117;
+    --border:    #1e2d3d;
+    --accent:    #00e5ff;
+    --green:     #39ff6e;
+    --red:       #ff3b5c;
+    --yellow:    #ffcc00;
+    --dim:       #3a4a5a;
+    --text:      #c8d8e8;
+    --muted:     #546478;
+    --agent:     #00e5ff;
+    --goal-c:    #39ff6e;
+    --obs-c:     #1e2d3d;
+    --path-c:    #1a3a4a;
+    --visited-c: #0f1f2a;
+    --trail-c:   #004455;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--green), transparent);
+    animation: scanline 3s linear infinite;
+  }
+  @keyframes scanline { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+  .logo {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .logo-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .logo-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 20px;
+    background: rgba(0,229,255,0.04);
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Main layout ── */
+  main {
+    display: grid;
+    grid-template-columns: 260px 1fr 240px;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* ── Panels ── */
+  .panel {
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+    overflow-y: auto;
+  }
+  .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
+
+  .panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Scenario cards ── */
+  .scenario-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 11px 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+    text-align: left;
+    width: 100%;
+  }
+  .scenario-card:hover { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+  .scenario-card.active { border-color: var(--accent); background: rgba(0,229,255,0.08); }
+  .sc-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text);
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .sc-badge {
+    font-size: 9px; font-weight: 700; padding: 2px 7px;
+    border-radius: 3px; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .badge-pass { background: rgba(57,255,110,0.15); color: var(--green); }
+  .badge-fail { background: rgba(255,59,92,0.15);  color: var(--red); }
+  .sc-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+
+  /* ── Behavior selector ── */
+  .behavior-group { display: flex; flex-direction: column; gap: 6px; }
+  .beh-btn {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 9px 13px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .beh-btn:hover { border-color: var(--accent); }
+  .beh-btn.active.greedy  { border-color: var(--accent); background: rgba(0,229,255,0.08); color: var(--accent); }
+  .beh-btn.active.cautious{ border-color: var(--yellow); background: rgba(255,204,0,0.08);  color: var(--yellow); }
+  .beh-btn.active.reckless{ border-color: var(--red);    background: rgba(255,59,92,0.08);  color: var(--red); }
+  .beh-icon { font-size: 14px; }
+  .beh-text { display: flex; flex-direction: column; gap: 1px; }
+  .beh-name { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .beh-hint { font-size: 9px; color: var(--muted); }
+
+  /* ── Speed slider ── */
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+  input[type=range] {
+    flex: 1; accent-color: var(--accent);
+    height: 3px; cursor: pointer;
+  }
+  .slider-val { font-size: 10px; color: var(--accent); width: 28px; text-align: right; }
+
+  /* ── Control buttons ── */
+  .controls { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; border: 1px solid var(--border);
+    border-radius: 5px; padding: 10px 8px;
+    cursor: pointer; background: transparent;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px; color: var(--text);
+    transition: all 0.15s; text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 700;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.run {
+    background: rgba(0,229,255,0.12);
+    border-color: var(--accent); color: var(--accent);
+    box-shadow: 0 0 14px rgba(0,229,255,0.15);
+  }
+  .btn.run:hover { background: rgba(0,229,255,0.22); }
+  .btn.reset { border-color: var(--muted); color: var(--muted); }
+
+  /* ── Grid canvas ── */
+  .grid-container {
+    display: flex; align-items: center; justify-content: center;
+    flex: 1; padding: 24px; position: relative;
+    background: radial-gradient(ellipse at center, #0a1520 0%, var(--bg) 70%);
+  }
+  canvas {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    image-rendering: pixelated;
+    box-shadow: 0 0 40px rgba(0,229,255,0.06), 0 0 80px rgba(0,0,0,0.8);
+  }
+
+  /* ── Verdict overlay ── */
+  .verdict {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 28px 40px;
+    text-align: center;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 10;
+  }
+  .verdict.show { transform: translate(-50%, -50%) scale(1); }
+  .verdict.pass { border-color: var(--green); }
+  .verdict.fail { border-color: var(--red); }
+  .verdict-label {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 42px;
+    letter-spacing: 0.1em;
+  }
+  .verdict.pass .verdict-label { color: var(--green); }
+  .verdict.fail .verdict-label { color: var(--red); }
+  .verdict-detail { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Stats panel ── */
+  .stat-block { display: flex; flex-direction: column; gap: 10px; }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: rgba(255,255,255,0.02);
+  }
+  .stat-key { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 15px;
+    color: var(--text);
+  }
+  .stat-val.green { color: var(--green); }
+  .stat-val.red   { color: var(--red); }
+  .stat-val.cyan  { color: var(--accent); }
+  .stat-val.yellow{ color: var(--yellow); }
+
+  /* ── Progress bar ── */
+  .progress-wrap {
+    border: 1px solid var(--border); border-radius: 4px;
+    overflow: hidden; height: 6px; background: var(--obs-c);
+  }
+  .progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    transition: width 0.1s;
+  }
+
+  /* ── Legend ── */
+  .legend { display: flex; flex-direction: column; gap: 7px; }
+  .legend-row { display: flex; align-items: center; gap: 9px; font-size: 10px; color: var(--muted); }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.08); }
+
+  /* ── Log ── */
+  .log-box {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 9px;
+    color: var(--muted);
+    height: 110px;
+    overflow-y: auto;
+    line-height: 1.7;
+    background: rgba(0,0,0,0.3);
+  }
+  .log-box .log-pass { color: var(--green); }
+  .log-box .log-fail { color: var(--red); }
+  .log-box .log-info { color: var(--accent); }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-title">Autonomous Agent Simulation Evaluator</div>
+    <div class="logo-sub">Waymo-style continuous evaluation pipeline · Visual Mode</div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    SYSTEM ONLINE
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: Scenario + controls -->
+  <div class="panel">
+    <div class="panel-title">Test Scenarios</div>
+
+    <div id="scenarioList"></div>
+
+    <div class="panel-title" style="margin-top:4px">Decision Behavior</div>
+    <div class="behavior-group" id="behaviorGroup">
+      <button class="beh-btn greedy active" data-beh="greedy">
+        <span class="beh-icon">🧭</span>
+        <div class="beh-text">
+          <span class="beh-name">Greedy</span>
+          <span class="beh-hint">A* — shortest valid path</span>
+        </div>
+      </button>
+      <button class="beh-btn cautious" data-beh="cautious">
+        <span class="beh-icon">🛡️</span>
+        <div class="beh-text">
+          <span class="beh-name">Cautious</span>
+          <span class="beh-hint">A* + obstacle-proximity penalty</span>
+        </div>
+      </button>
+      <button class="beh-btn reckless" data-beh="reckless">
+        <span class="beh-icon">⚡</span>
+        <div class="beh-text">
+          <span class="beh-name">Reckless</span>
+          <span class="beh-hint">Naive axis-align — will crash</span>
+        </div>
+      </button>
+    </div>
+
+    <div class="panel-title">Playback Speed</div>
+    <div class="slider-row">
+      <span class="slider-label">Slow</span>
+      <input type="range" id="speedSlider" min="1" max="10" value="4">
+      <span class="slider-label">Fast</span>
+      <span class="slider-val" id="speedVal">4×</span>
+    </div>
+
+    <div class="controls">
+      <button class="btn run" id="runBtn">▶ Run</button>
+      <button class="btn reset" id="resetBtn">↺ Reset</button>
+    </div>
+  </div>
+
+  <!-- CENTER: Grid -->
+  <div class="grid-container" id="gridContainer">
+    <canvas id="gridCanvas"></canvas>
+    <div class="verdict" id="verdict">
+      <div class="verdict-label" id="verdictLabel">PASS</div>
+      <div class="verdict-detail" id="verdictDetail"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Stats -->
+  <div class="panel">
+    <div class="panel-title">Live Metrics</div>
+    <div class="stat-block">
+      <div class="stat-row">
+        <span class="stat-key">Status</span>
+        <span class="stat-val" id="statStatus">IDLE</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Steps</span>
+        <span class="stat-val cyan" id="statSteps">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Collisions</span>
+        <span class="stat-val red" id="statCollisions">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Efficiency</span>
+        <span class="stat-val yellow" id="statEfficiency">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Path Length</span>
+        <span class="stat-val" id="statPath">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Optimal</span>
+        <span class="stat-val" id="statOptimal">—</span>
+      </div>
+    </div>
+
+    <div class="panel-title">Progress</div>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+    <div class="panel-title">Legend</div>
+    <div class="legend">
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:#00e5ff;box-shadow:0 0 6px #00e5ff"></div>Agent
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:#39ff6e;box-shadow:0 0 6px #39ff6e"></div>Goal
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:#2a3f52"></div>Planned Path
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:#004455"></div>Agent Trail
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:#0f1f2a"></div>Explored
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:#1e2d3d"></div>Obstacle
+      </div>
+    </div>
+
+    <div class="panel-title">Event Log</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario definitions (mirror the JSON files exactly)
+// ─────────────────────────────────────────────────────────────────────────────
+const SCENARIOS = [
+  {
+    id: "01_open_field",
+    name: "Open Field",
+    desc: "No obstacles — baseline A* run",
+    expected: "PASS",
+    width: 20, height: 20,
+    start: {x:0,y:0}, goal: {x:19,y:19},
+    obstacles: [],
+    maxSteps: 100, behavior: "greedy"
+  },
+  {
+    id: "02_obstacle_course",
+    name: "Obstacle Course",
+    desc: "Scattered clusters, A* detours",
+    expected: "PASS",
+    width: 20, height: 20,
+    start: {x:0,y:0}, goal: {x:19,y:19},
+    obstacles: [
+      {x:5,y:2},{x:5,y:3},{x:5,y:4},{x:5,y:5},
+      {x:9,y:7},{x:9,y:8},{x:9,y:9},{x:9,y:10},
+      {x:13,y:12},{x:13,y:13},{x:13,y:14},
+      {x:17,y:16},{x:17,y:17},{x:17,y:18}
+    ],
+    maxSteps: 120, behavior: "greedy"
+  },
+  {
+    id: "03_reckless_collision",
+    name: "Reckless Collision",
+    desc: "Naive planner hits a wall",
+    expected: "FAIL",
+    width: 20, height: 20,
+    start: {x:0,y:0}, goal: {x:19,y:10},
+    obstacles: [{x:5,y:5},{x:6,y:5},{x:5,y:6}],
+    maxSteps: 100, behavior: "reckless"
+  },
+  {
+    id: "04_narrow_corridor",
+    name: "Narrow Corridor",
+    desc: "15-cell wall, one tiny gap",
+    expected: "PASS",
+    width: 20, height: 20,
+    start: {x:0,y:0}, goal: {x:19,y:15},
+    obstacles: [
+      {x:0,y:8},{x:1,y:8},{x:2,y:8},{x:3,y:8},{x:4,y:8},
+      {x:5,y:8},{x:6,y:8},{x:7,y:8},{x:8,y:8},{x:9,y:8},
+      {x:10,y:8},{x:11,y:8},{x:12,y:8},{x:13,y:8},{x:14,y:8}
+    ],
+    maxSteps: 150, behavior: "greedy"
+  },
+  {
+    id: "05_no_path",
+    name: "No Valid Path",
+    desc: "Goal enclosed — no solution",
+    expected: "FAIL",
+    width: 10, height: 10,
+    start: {x:0,y:0}, goal: {x:5,y:5},
+    obstacles: [{x:4,y:5},{x:6,y:5},{x:5,y:4},{x:5,y:6}],
+    maxSteps: 200, behavior: "greedy"
+  },
+  {
+    id: "06_cautious",
+    name: "Cautious S-Path",
+    desc: "Two walls, safety-margin routing",
+    expected: "PASS",
+    width: 20, height: 20,
+    start: {x:0,y:0}, goal: {x:19,y:19},
+    obstacles: [
+      {x:0,y:6},{x:1,y:6},{x:2,y:6},{x:3,y:6},{x:4,y:6},
+      {x:5,y:6},{x:6,y:6},{x:7,y:6},{x:8,y:6},{x:9,y:6},{x:10,y:6},
+      {x:8,y:13},{x:9,y:13},{x:10,y:13},{x:11,y:13},{x:12,y:13},
+      {x:13,y:13},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},
+      {x:18,y:13},{x:19,y:13}
+    ],
+    maxSteps: 300, behavior: "cautious"
+  }
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A* implementation (mirrors simulator.cpp exactly)
+// ─────────────────────────────────────────────────────────────────────────────
+function key(x,y){ return `${x},${y}`; }
+function manhattan(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
+const DIRS = [{x:0,y:1},{x:0,y:-1},{x:1,y:0},{x:-1,y:0}];
+
+function isObstacle(obstacles, x, y) {
+  return obstacles.some(o => o.x===x && o.y===y);
+}
+function inBounds(w,h,x,y){ return x>=0&&x<w&&y>=0&&y<h; }
+function adjacentToObstacle(obstacles,w,h,x,y){
+  for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){
+    if(dx===0&&dy===0) continue;
+    if(isObstacle(obstacles,x+dx,y+dy)) return true;
+  }
+  return false;
+}
+
+function astar(scen, behavior, collectVisited=false) {
+  const {width:w, height:h, start, goal, obstacles} = scen;
+  if(isObstacle(obstacles,start.x,start.y)||isObstacle(obstacles,goal.x,goal.y)) return {path:[],visited:[]};
+
+  const gCost = new Map();
+  const cameFrom = new Map();
+  const visited = [];
+
+  // min-heap via simple sorted insert (small grids, fine for viz)
+  let open = [{pos:start, f:manhattan(start,goal)}];
+  gCost.set(key(start.x,start.y), 0);
+
+  while(open.length){
+    open.sort((a,b)=>a.f-b.f);
+    const {pos} = open.shift();
+    visited.push({...pos});
+
+    if(pos.x===goal.x && pos.y===goal.y){
+      const path=[];
+      let cur=goal;
+      while(!(cur.x===start.x&&cur.y===start.y)){
+        path.push({...cur});
+        cur=cameFrom.get(key(cur.x,cur.y));
+      }
+      path.push({...start});
+      path.reverse();
+      return {path, visited};
+    }
+
+    for(const d of DIRS){
+      const nx=pos.x+d.x, ny=pos.y+d.y;
+      if(!inBounds(w,h,nx,ny)||isObstacle(obstacles,nx,ny)) continue;
+      let cost=1;
+      if(behavior==='cautious' && adjacentToObstacle(obstacles,w,h,nx,ny)) cost=10;
+      const ng=(gCost.get(key(pos.x,pos.y))||0)+cost;
+      if(!gCost.has(key(nx,ny))||ng<gCost.get(key(nx,ny))){
+        gCost.set(key(nx,ny),ng);
+        cameFrom.set(key(nx,ny),pos);
+        open.push({pos:{x:nx,y:ny}, f:ng+manhattan({x:nx,y:ny},goal)});
+      }
+    }
+  }
+  return {path:[], visited};
+}
+
+function planReckless(scen) {
+  const {start,goal,maxSteps} = scen;
+  const path=[{...start}];
+  let cur={...start};
+  for(let s=0;cur.x!==goal.x||cur.y!==goal.y;s++){
+    if(s>maxSteps+50) break;
+    const dx=goal.x>cur.x?1:goal.x<cur.x?-1:0;
+    const dy=goal.y>cur.y?1:goal.y<cur.y?-1:0;
+    if(dx!==0&&dy!==0){ if(s%2===0) cur={x:cur.x+dx,y:cur.y}; else cur={x:cur.x,y:cur.y+dy}; }
+    else if(dx!==0) cur={x:cur.x+dx,y:cur.y};
+    else if(dy!==0) cur={x:cur.x,y:cur.y+dy};
+    else break;
+    path.push({...cur});
+  }
+  return {path, visited:[]};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Canvas renderer
+// ─────────────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d');
+
+let CELL = 28;
+
+function resizeCanvas(w, h) {
+  const container = document.getElementById('gridContainer');
+  const maxW = container.clientWidth - 48;
+  const maxH = container.clientHeight - 48;
+  CELL = Math.min(Math.floor(maxW/w), Math.floor(maxH/h), 36);
+  canvas.width  = w * CELL;
+  canvas.height = h * CELL;
+}
+
+function drawGrid(scen, state) {
+  const {width:w,height:h,obstacles,start,goal} = scen;
+  const {plannedSet,visitedSet,trail,agentPos,collision} = state;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for(let x=0;x<w;x++) for(let y=0;y<h;y++) {
+    const k=key(x,y);
+    let fill='#0b1520';
+
+    if(isObstacle(obstacles,x,y))       fill='#1a2a3a';
+    else if(visitedSet&&visitedSet.has(k)) fill='#0f1f2e';
+    if(plannedSet&&plannedSet.has(k))    fill='#1a3550';
+    if(trail&&trail.some(t=>t.x===x&&t.y===y)) fill='#004455';
+
+    ctx.fillStyle=fill;
+    ctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+
+    // Grid lines
+    ctx.strokeStyle='rgba(30,45,61,0.5)';
+    ctx.lineWidth=0.5;
+    ctx.strokeRect(x*CELL, y*CELL, CELL, CELL);
+
+    // Obstacle texture
+    if(isObstacle(obstacles,x,y)){
+      ctx.fillStyle='rgba(0,229,255,0.06)';
+      ctx.fillRect(x*CELL+2,y*CELL+2,CELL-4,CELL-4);
+      ctx.strokeStyle='rgba(0,229,255,0.15)';
+      ctx.lineWidth=0.5;
+      ctx.strokeRect(x*CELL+2,y*CELL+2,CELL-4,CELL-4);
+    }
+  }
+
+  // Goal
+  const gx=goal.x*CELL, gy=goal.y*CELL;
+  const gGrad=ctx.createRadialGradient(gx+CELL/2,gy+CELL/2,1,gx+CELL/2,gy+CELL/2,CELL/2);
+  gGrad.addColorStop(0,'rgba(57,255,110,0.6)');
+  gGrad.addColorStop(1,'rgba(57,255,110,0)');
+  ctx.fillStyle=gGrad;
+  ctx.fillRect(gx,gy,CELL,CELL);
+  ctx.fillStyle='#39ff6e';
+  ctx.fillRect(gx+CELL/2-3,gy+CELL/2-3,6,6);
+
+  // Collision flash
+  if(collision){
+    ctx.fillStyle='rgba(255,59,92,0.35)';
+    ctx.fillRect(agentPos.x*CELL,agentPos.y*CELL,CELL,CELL);
+  }
+
+  // Agent
+  if(agentPos){
+    const ax=agentPos.x*CELL+CELL/2, ay=agentPos.y*CELL+CELL/2;
+    const r=CELL*0.32;
+    // Glow
+    const aGrad=ctx.createRadialGradient(ax,ay,0,ax,ay,r*2.5);
+    aGrad.addColorStop(0,'rgba(0,229,255,0.4)');
+    aGrad.addColorStop(1,'rgba(0,229,255,0)');
+    ctx.fillStyle=aGrad;
+    ctx.beginPath(); ctx.arc(ax,ay,r*2.5,0,Math.PI*2); ctx.fill();
+    // Body
+    ctx.fillStyle='#00e5ff';
+    ctx.beginPath(); ctx.arc(ax,ay,r,0,Math.PI*2); ctx.fill();
+    // Inner
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath(); ctx.arc(ax,ay,r*0.4,0,Math.PI*2); ctx.fill();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simulation state machine
+// ─────────────────────────────────────────────────────────────────────────────
+let currentScen = null;
+let currentBehavior = 'greedy';
+let simTimer = null;
+let simState = {
+  agentPos: null, trail: [], plannedSet: new Set(), visitedSet: new Set(),
+  collision: false, stepIdx: 0, plannedPath: [], running: false, done: false
+};
+let metrics = { steps:0, collisions:0, pathLen:0, optimalLen:0 };
+
+function log(msg, cls='') {
+  const box = document.getElementById('logBox');
+  const ts = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const line = document.createElement('div');
+  if(cls) line.className = cls;
+  line.textContent = `[${ts}] ${msg}`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateStats() {
+  const s = metrics;
+  document.getElementById('statSteps').textContent     = s.steps;
+  document.getElementById('statCollisions').textContent= s.collisions;
+  document.getElementById('statPath').textContent      = s.pathLen || '—';
+  document.getElementById('statOptimal').textContent   = s.optimalLen || '—';
+  const eff = (s.optimalLen && s.steps>0) ? (s.optimalLen/s.steps).toFixed(3) : '—';
+  document.getElementById('statEfficiency').textContent = eff;
+  const pct = s.pathLen ? Math.min(100, Math.round(100*s.steps/s.pathLen)) : 0;
+  document.getElementById('progressBar').style.width   = pct+'%';
+}
+
+function setStatus(txt, cls='') {
+  const el = document.getElementById('statStatus');
+  el.textContent = txt;
+  el.className = 'stat-val ' + cls;
+}
+
+function showVerdict(passed, detail) {
+  const v = document.getElementById('verdict');
+  document.getElementById('verdictLabel').textContent = passed ? 'PASS' : 'FAIL';
+  document.getElementById('verdictDetail').textContent = detail;
+  v.className = 'verdict show ' + (passed ? 'pass' : 'fail');
+  setTimeout(()=>{ v.className='verdict '+(passed?'pass':'fail'); }, 2800);
+}
+
+function initSim() {
+  if(!currentScen) return;
+  const scen = {...currentScen, behavior: currentBehavior};
+  resizeCanvas(scen.width, scen.height);
+
+  let plan, visited;
+  if(currentBehavior==='reckless'){
+    const r=planReckless(scen); plan=r.path; visited=r.visited;
+  } else {
+    const r=astar(scen, currentBehavior, true); plan=r.path; visited=r.visited;
+  }
+
+  const optResult = astar(scen,'greedy');
+  metrics.optimalLen = optResult.path.length>0 ? optResult.path.length-1 : 0;
+  metrics.pathLen    = plan.length>0 ? plan.length-1 : 0;
+  metrics.steps=0; metrics.collisions=0;
+
+  const plannedSet = new Set(plan.map(p=>key(p.x,p.y)));
+  const visitedSet = new Set(visited.map(p=>key(p.x,p.y)));
+
+  simState = {
+    agentPos: {...scen.start},
+    trail: [],
+    plannedSet, visitedSet,
+    collision: false,
+    stepIdx: 1,
+    plannedPath: plan,
+    running: false,
+    done: false,
+    scen
+  };
+
+  if(plan.length===0 && currentBehavior!=='reckless'){
+    simState.done=true;
+    log(`No path found for ${scen.id}`,'log-fail');
+    setStatus('NO PATH','red');
+  } else {
+    setStatus('READY','cyan');
+    log(`Loaded: ${scen.id} | behavior: ${currentBehavior} | path: ${plan.length} steps`,'log-info');
+  }
+
+  updateStats();
+  drawGrid(scen, simState);
+}
+
+function stepSim() {
+  if(!simState || simState.done) return;
+  const {scen, plannedPath} = simState;
+
+  // Check if goal
+  if(simState.agentPos.x===scen.goal.x && simState.agentPos.y===scen.goal.y){
+    finishSim(true, 'REACHED GOAL');
+    return;
+  }
+
+  if(simState.stepIdx >= plannedPath.length){
+    finishSim(false, 'PLAN EXHAUSTED');
+    return;
+  }
+
+  if(metrics.steps >= scen.maxSteps){
+    finishSim(false, 'MAX STEPS EXCEEDED');
+    return;
+  }
+
+  const next = plannedPath[simState.stepIdx];
+
+  // Collision check
+  if(isObstacle(scen.obstacles, next.x, next.y)){
+    metrics.collisions++;
+    simState.collision=true;
+    simState.agentPos={...next};
+    metrics.steps++;
+    updateStats();
+    drawGrid(scen, simState);
+    finishSim(false, 'COLLISION');
+    return;
+  }
+
+  simState.trail.push({...simState.agentPos});
+  if(simState.trail.length>30) simState.trail.shift();
+  simState.agentPos={...next};
+  simState.stepIdx++;
+  metrics.steps++;
+  simState.collision=false;
+
+  // Goal check
+  if(simState.agentPos.x===scen.goal.x && simState.agentPos.y===scen.goal.y){
+    updateStats();
+    drawGrid(scen, simState);
+    finishSim(true, 'REACHED GOAL');
+    return;
+  }
+
+  updateStats();
+  drawGrid(scen, simState);
+}
+
+function finishSim(passed, reason) {
+  stopTimer();
+  simState.done=true;
+  simState.running=false;
+  document.getElementById('runBtn').textContent='▶ Run';
+  showVerdict(passed, reason + ` · ${metrics.steps} steps`);
+  setStatus(passed?'PASS':'FAIL', passed?'green':'red');
+  if(passed) log(`✓ PASS — ${reason} in ${metrics.steps} steps`,'log-pass');
+  else       log(`✗ FAIL — ${reason} after ${metrics.steps} steps`,'log-fail');
+}
+
+function stopTimer(){
+  if(simTimer){ clearInterval(simTimer); simTimer=null; }
+}
+
+function getSpeed(){
+  const v=parseInt(document.getElementById('speedSlider').value);
+  // map 1-10 → 400ms - 20ms
+  return Math.round(420 - v*40);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI wiring
+// ─────────────────────────────────────────────────────────────────────────────
+function buildScenarioList() {
+  const list = document.getElementById('scenarioList');
+  SCENARIOS.forEach((s,i)=>{
+    const btn=document.createElement('button');
+    btn.className='scenario-card'+(i===0?' active':'');
+    btn.dataset.idx=i;
+    btn.innerHTML=`
+      <div class="sc-name">
+        ${s.name}
+        <span class="sc-badge ${s.expected==='PASS'?'badge-pass':'badge-fail'}">${s.expected}</span>
+      </div>
+      <div class="sc-desc">${s.desc}</div>`;
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      currentScen={...s};
+      currentBehavior=s.behavior;
+      // Update behavior buttons
+      document.querySelectorAll('.beh-btn').forEach(b=>{
+        b.classList.toggle('active', b.dataset.beh===s.behavior);
+      });
+      stopTimer();
+      document.getElementById('runBtn').textContent='▶ Run';
+      document.getElementById('verdict').className='verdict';
+      initSim();
+    });
+    list.appendChild(btn);
+  });
+}
+
+document.getElementById('runBtn').addEventListener('click',()=>{
+  if(!currentScen) return;
+  if(simState.done){ initSim(); }
+
+  if(simState.running){
+    stopTimer();
+    simState.running=false;
+    document.getElementById('runBtn').textContent='▶ Run';
+    setStatus('PAUSED','yellow');
+  } else {
+    simState.running=true;
+    document.getElementById('runBtn').textContent='⏸ Pause';
+    setStatus('RUNNING','cyan');
+    simTimer=setInterval(stepSim, getSpeed());
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  stopTimer();
+  document.getElementById('runBtn').textContent='▶ Run';
+  document.getElementById('verdict').className='verdict';
+  if(currentScen) initSim();
+});
+
+document.getElementById('speedSlider').addEventListener('input',function(){
+  document.getElementById('speedVal').textContent=this.value+'×';
+  if(simState.running){
+    stopTimer();
+    simTimer=setInterval(stepSim, getSpeed());
+  }
+});
+
+document.querySelectorAll('.beh-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.beh-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentBehavior=btn.dataset.beh;
+    stopTimer();
+    document.getElementById('runBtn').textContent='▶ Run';
+    document.getElementById('verdict').className='verdict';
+    if(currentScen) initSim();
+    log(`Behavior → ${currentBehavior}`,'log-info');
+  });
+});
+
+window.addEventListener('resize',()=>{ if(currentScen) initSim(); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────────────────────
+buildScenarioList();
+currentScen = {...SCENARIOS[0]};
+currentBehavior = SCENARIOS[0].behavior;
+setTimeout(initSim, 80);  // wait for layout
+log('System initialized — select a scenario and press Run','log-info');
+</script>
+</body>
+</html>
